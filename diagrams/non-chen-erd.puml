@@ -1,0 +1,127 @@
+@startuml
+' Entities
+entity "Drivers" {
+  *driver_id : VARCHAR <<PK>>
+  --
+  name : VARCHAR
+  driver_number : INT <<UNIQUE>>
+  nationality : VARCHAR
+  team_id : VARCHAR <<FK>>
+}
+
+entity "Cars" {
+  *car_id : VARCHAR <<PK>>
+  --
+  team_id : VARCHAR
+  model : VARCHAR
+  year : SMALLINT <<CHECK year >= 1950>>
+}
+
+entity "Races" {
+  *race_id : VARCHAR <<PK>>
+  --
+  season : INT
+  round : INT
+  date : DATE
+  circuit_name : VARCHAR
+}
+
+entity "Results" {
+  *result_id : VARCHAR <<PK>>
+  --@startchen
+left to right direction
+
+entity Drivers {
+  driver_id  <<key>>
+  name  
+  driver_number   <<multi>>
+  nationality  
+  team_id  <<derived>>
+}
+
+entity Cars {
+  car_id  <<key>>
+  team_id 
+  model 
+  year  <<CHECK year >= 1950>>
+}
+
+entity Races {
+  race_id   <<key>>
+  season 
+  round 
+  date 
+  circuit_name 
+}
+
+entity Results {
+  result_id  <<key>>
+  race_id  <<derived>>
+  driver_id  <<derived>>
+  position 
+  points 
+}
+
+entity Telemetry {
+  telemetry_id  <<key>>
+  race_id  <<derived>>
+  driver_id  <<derived>>
+  lap_number 
+  speed 
+  drs_status 
+}
+
+
+relationship has{
+
+}
+relationship contains{
+
+}
+relationship records{
+
+}
+
+relationship drives{
+
+}
+
+drives -(0,n)- Drivers
+drives -(0,n)- Cars
+
+has -(1,1)- Drivers
+has -(0,n)- Results
+
+records -(1,1)- Drivers
+records -(0,n)- Telemetry
+
+
+contains -(1,1)- Races
+contains -(0,n)- Results
+contains -(0,n)- Telemetry
+
+
+@endchen
+  race_id : VARCHAR <<FK>>
+  driver_id : VARCHAR <<FK>>
+  position : INT
+  points : INT
+}
+
+entity "Telemetry" {
+  *telemetry_id : VARCHAR <<PK>>
+  --
+  race_id : VARCHAR <<FK>>
+  driver_id : VARCHAR <<FK>>
+  lap_number : INT
+  speed : FLOAT
+  drs_status : BOOLEAN
+}
+
+' Relationships
+Drivers ||--o{ Results : "has"
+Races ||--o{ Results : "contains"
+Drivers ||--o{ Telemetry : "records"
+Races ||--o{ Telemetry : "contains"
+Drivers }o--o{ Cars : "drives"
+@enduml
