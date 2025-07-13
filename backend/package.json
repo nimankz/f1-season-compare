@@ -5,8 +5,8 @@
   "main": "src/index.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "ts-node ./src/index.ts"
-
+    "dev": "ts-node ./src/index.ts",
+    "dev-dataInsertion": "ts-node ./src/data-fetcher.ts"
   },
   "keywords": [],
   "author": "",
@@ -16,8 +16,11 @@
     "@prisma/client": "^6.11.1",
     "@types/node": "^24.0.12",
     "axios": "^1.10.0",
-    "prisma": "^6.11.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
+  },
+  "devDependencies": {
+    "@types/uuid": "^10.0.0",
+    "prisma": "^6.11.1"
   }
 }
