@@ -1,7 +1,7 @@
 import axios, {AxiosError, AxiosResponse, AxiosRequestConfig} from "axios";
 import {PrismaClient} from './../generated/prisma/client'
 
-interface Session {
+interface Session_interface {
 
     meeting_key: number,
     session_key: number,
@@ -32,15 +32,30 @@ interface Driver_interface   {
     headshot_url: string,
     country_code: string
 }
+interface Result_interface   	{
+    position: number,
+    driver_number: number,
+    number_of_laps: number,
+    points: number,
+    dnf: boolean,
+    dns: boolean,
+    dsq: boolean,
+    gap_to_leader: number,
+    duration: number,
+    meeting_key: number,
+    session_key: number
 
+}
+function sleep(ms:number){
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
-
-class  DataFetcher{
+export class   DataFetcher{
     private baseURL: string = 'https://api.openf1.org/v1';
 
-    async fetchSessions(year:number): Promise<Session[]>{
+    async fetchSessions(year:number):Promise<Session_interface[]>{
         try {
-        const response:AxiosResponse<Session[],AxiosRequestConfig> = await axios.get<Session[]>(`${this.baseURL}/sessions?year=${year}`);
+        const response:AxiosResponse<Session_interface[],AxiosRequestConfig> = await axios.get<Session_interface[]>(`${this.baseURL}/sessions?year=${year}&session_type=Race`);
         // console.log(response.data);
         return response.data;
         }catch(error){
@@ -59,10 +74,24 @@ class  DataFetcher{
             throw new Error(`failed to fetch drivers: ${axiosError.message}`);
         }
     }
+
+    async fetchResults(session_key:number): Promise<Result_interface[]>{
+        try {
+            const response:AxiosResponse<Result_interface[],AxiosRequestConfig> = await axios.get<Result_interface[]>(`${this.baseURL}/session_result?session_key=${session_key}&position<=10`);
+            console.log(response.data);
+            await sleep(300);
+            return response.data;
+        }catch(error){
+            const axiosError = error as AxiosError;
+            throw new Error(`failed to fetch session result of session ${session_key}: ${axiosError.message}`);
+        }
+    }
+
+    
 };
 
 
-class DataInserter {
+export class DataInserter {
     private prisma: PrismaClient;
 
     constructor() {
@@ -93,6 +122,33 @@ class DataInserter {
         }
     }
 
+    async insertRaces(session_list:Session_interface[]):Promise<void>{
+        try {
+            if (!session_list.length) {
+                throw new Error("No session found.");
+            }else{
+                await this.prisma.race.createMany({
+                    data : session_list.map((session:Session_interface)=>({
+                        id: session.session_key.toString(),
+                        season: session.year,
+                        date: new Date(session.date_start),
+                        circuit_name: session.circuit_short_name,
+                        race_type: session.session_name,
+                        country: session.country_name,
+                        city: session.location
+                    }))
+                })
+                console.log(`session was inserted: ${session_list.length}`);
+
+            }
+        }catch(error) {
+            console.error(`failed to insert race: ${error}`);
+        }
+    }
+
+
+
+
 
     async disconnect(): Promise<void> {
         await this.prisma.$disconnect();
@@ -101,18 +157,20 @@ class DataInserter {
 }
 
 
-async function main(){
-    const mydataFetcher = new DataFetcher();
-    const myInserter = new DataInserter();
-    for (const year of [2023,2024]){
-        const sessions : Session[] = await mydataFetcher.fetchSessions(year)
-        const meetingKeys : number[] = [...new Set(sessions.map(x=>x.meeting_key))];
-        for (const meetingKey of meetingKeys){
-            const drivers:Driver_interface[] = await mydataFetcher.fetchDrivers(meetingKey);
-            await myInserter.insertDrivers(drivers);
-        }
-    }
-    myInserter.disconnect();
-}
+// async function main(){
+//     const myDataFetcher = new DataFetcher();
+//     const myDataInserter= new DataInserter();
+//     for (const year of [2023,2024]){
+//         const sessions : Session_interface[] = await myDataFetcher.fetchSessions(year)
+//         await myDataInserter.insertRaces(sessions);
+//
+//     }
+//     myDataInserter.disconnect();
+// }
+//
+// main().catch(error => console.error(`main() failed: ${error}`));
 
-main().catch(error => console.error(`main() failed: ${error}`));
+
+
+
+

@@ -13,6 +13,7 @@ datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
 }
+
 model Driver {
   id            String      @id
   name          String
@@ -22,19 +23,15 @@ model Driver {
   results       Result[]
   telemetry     Telemetry[]
 }
-model Car {
-  id      String @id
-  team_id String
-  model   String
-  year    Int    @db.SmallInt
-  // @@constraint("chk_year", check: year >=1950)
-}
+
 model Race {
   id           String      @id
   season       Int
-  round        Int
   date         DateTime    @db.Date
   circuit_name String
+  race_type    String      @default("Race")
+  country      String
+  city         String
   results      Result[]
   telemtry     Telemetry[]
 }
@@ -44,7 +41,7 @@ model Result {
   race_id   String
   driver_id String
   position  Int?
-  points    Int?
+  points    Int?   @default(0)
   race      Race   @relation(fields: [race_id], references: [id])
   driver    Driver @relation(fields: [driver_id], references: [id])
 }
