@@ -15,44 +15,32 @@ datasource db {
 }
 
 model Driver {
-  id            String      @id
+  id            String   @id
   name          String
-  driver_number Int         @unique
+  driver_number Int      @unique
   nationality   String?
   team_id       String
   results       Result[]
-  telemetry     Telemetry[]
 }
 
 model Race {
-  id           String      @id
+  id           String   @id
   season       Int
-  date         DateTime    @db.Date
+  date         DateTime @db.Date
   circuit_name String
-  race_type    String      @default("Race")
+  race_type    String   @default("Race")
   country      String
   city         String
   results      Result[]
-  telemtry     Telemetry[]
 }
 
 model Result {
-  id        String @id
-  race_id   String
-  driver_id String
-  position  Int?
-  points    Int?   @default(0)
-  race      Race   @relation(fields: [race_id], references: [id])
-  driver    Driver @relation(fields: [driver_id], references: [id])
-}
-
-model Telemetry {
-  id         String   @id
-  race_id    String
-  driver_id  String
-  lap_number Int
-  speed      Float?
-  drs_status Boolean?
-  race       Race     @relation(fields: [race_id], references: [id])
-  driver     Driver   @relation(fields: [driver_id], references: [id])
+  id            String @id
+  race_id       String
+  driver_number Int
+  position      Int?
+  points        Int?   @default(0)
+  extra_points  Int    @default(0)
+  race          Race   @relation(fields: [race_id], references: [id])
+  driver        Driver @relation(fields: [driver_number], references: [driver_number])
 }

@@ -6,7 +6,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "ts-node ./src/index.ts",
-    "dev-dataInsertion": "ts-node ./src/data-fetcher.ts"
+    "dev-dataInsertion": "ts-node ./src/data-fetcher.ts",
+    "reset-db": "npx prisma db push --force-reset",
+    "generate": "npx prisma generate"
   },
   "keywords": [],
   "author": "",
@@ -17,7 +19,8 @@
     "@types/node": "^24.0.12",
     "axios": "^1.10.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@types/uuid": "^10.0.0",

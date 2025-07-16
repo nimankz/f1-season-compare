@@ -1,5 +1,6 @@
 import axios, {AxiosError, AxiosResponse, AxiosRequestConfig} from "axios";
 import {PrismaClient} from './../generated/prisma/client'
+import {v4 as uuid4  } from "uuid";
 
 interface Session_interface {
 
@@ -36,7 +37,7 @@ interface Result_interface   	{
     position: number,
     driver_number: number,
     number_of_laps: number,
-    points: number,
+    point: number,
     dnf: boolean,
     dns: boolean,
     dsq: boolean,
@@ -46,17 +47,25 @@ interface Result_interface   	{
     session_key: number
 
 }
+
 function sleep(ms:number){
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+
+function extra_piont(word:number|string|number[]) :number {
+    if (typeof word == "string") {
+        return Number(word[1])
+    }else return 0
+}
 export class   DataFetcher{
     private baseURL: string = 'https://api.openf1.org/v1';
 
-    async fetchSessions(year:number):Promise<Session_interface[]>{
+    async fetchSessions(year_start:number, year_end:number):Promise<Session_interface[]>{
         try {
-        const response:AxiosResponse<Session_interface[],AxiosRequestConfig> = await axios.get<Session_interface[]>(`${this.baseURL}/sessions?year=${year}&session_type=Race`);
+        const response:AxiosResponse<Session_interface[],AxiosRequestConfig> = await axios.get<Session_interface[]>(`${this.baseURL}/sessions?year%3E=${year_start}&year%3C=${year_end}&session_type=Race`);
         // console.log(response.data);
+            console.log("sessions recived!");
         return response.data;
         }catch(error){
             const axiosError = error as AxiosError;
@@ -64,26 +73,28 @@ export class   DataFetcher{
         }
     }
 
-    async fetchDrivers(meetingKey:number): Promise<Driver_interface[]>{
+    async fetchDrivers(sessionKey:number): Promise<Driver_interface[]>{
         try {
-        const response :AxiosResponse<Driver_interface[],AxiosRequestConfig> = await axios.get<Driver_interface[]>(`${this.baseURL}/drivers?meeting_key=${meetingKey.toString()}`);
+        const response :AxiosResponse<Driver_interface[],AxiosRequestConfig> = await axios.get<Driver_interface[]>(`${this.baseURL}/drivers?session_key=${sessionKey.toString()}`);
         // console.log(response.data);
-        return response.data;
+            console.log("drivers recived!");
+            return response.data;
         }catch(error) {
             const axiosError = error as AxiosError;
             throw new Error(`failed to fetch drivers: ${axiosError.message}`);
         }
     }
 
-    async fetchResults(session_key:number): Promise<Result_interface[]>{
+    async fetchResults(session_key_start:number, session_key_end:number): Promise<Result_interface[]>{
         try {
-            const response:AxiosResponse<Result_interface[],AxiosRequestConfig> = await axios.get<Result_interface[]>(`${this.baseURL}/session_result?session_key=${session_key}&position<=10`);
-            console.log(response.data);
+            const response:AxiosResponse<Result_interface[],AxiosRequestConfig> = await axios.get<Result_interface[]>(`${this.baseURL}/session_result?session_key>=${session_key_start}&session_key<=${session_key_end}`);
+            // console.log(response.data);
+            console.log("results recived!");
             await sleep(300);
             return response.data;
         }catch(error){
             const axiosError = error as AxiosError;
-            throw new Error(`failed to fetch session result of session ${session_key}: ${axiosError.message}`);
+            throw new Error(`failed to fetch session result of session ${session_key_start}: ${axiosError.message}`);
         }
     }
 
@@ -93,10 +104,17 @@ export class   DataFetcher{
 
 export class DataInserter {
     private prisma: PrismaClient;
+    public  grandPrixPoints:number[] =[25,18,15,12,10,8,6,4,2,1];
+    public sprintPoints:number[] =[8,7,6,5,4,3,2,1];
 
     constructor() {
         this.prisma = new PrismaClient();
     }
+
+    generate_id(): string {
+        return uuid4();
+    }
+
 
     async insertDrivers(drivers_list: Driver_interface[]): Promise<void> {
         try {
@@ -106,13 +124,13 @@ export class DataInserter {
             else{
                 await this.prisma.driver.createMany({
                     data :drivers_list.map((driver_member:Driver_interface) => ({
-                        id : driver_member.broadcast_name,
+                        id : this.generate_id(),
                         name : driver_member.full_name,
                         driver_number : driver_member.driver_number,
                         team_id: driver_member.team_name,
                         nationality: driver_member.country_code
-                    })),
-                    skipDuplicates:true,
+
+                    })), skipDuplicates: true,
                 });
                 console.log(`driver was inserted: ${drivers_list.length}`);
             }
@@ -146,7 +164,58 @@ export class DataInserter {
         }
     }
 
+    async addPoints(resultList:Result_interface[]):Promise<void>{
+        for (const result of resultList) {
+            let point:number
+            const session = await this.prisma.race.findUnique({where:{ id : result.session_key.toString(),}});
+            if (!session) {
+                point = 0;
+                result.point = point;
+            }
+            else if(session.race_type === "Race" && result.position <= 10){
+                point= this.grandPrixPoints[result.position-1];
+                result.point = point;
+            }else if(session.race_type === "Sprint" && result.position <= 8){
+                point = this.sprintPoints[result.position-1];
+                result.point = point;
+            }else {
+                point= 0;
+                result.point = point;
+            }
+        }
+    }
 
+    async insertResult(result_list:Result_interface[]): Promise<void>{
+        try {
+            if (!result_list.length) {
+                throw new Error("No session found.");
+            }else{
+                await this.addPoints(result_list);
+                await this.prisma.result.createMany({
+                    data :  result_list.map((result:Result_interface) =>({
+                        id: this.generate_id(),
+                        race_id :    result.session_key.toString(),
+                        driver_number :  result.driver_number,
+                        position :    Number(result.position),
+                        extra_points: extra_piont(result.gap_to_leader),
+                        points: result.point
+
+                    }))
+                })
+                console.log(`result was inserted: ${result_list.length}`);
+            }
+        }catch(error) {
+            console.error(`failed to insert result: ${error}`);
+        }
+    }
+
+    // async addResultDrivers(): Promise<void>{
+    //     const drivers_list =await this.prisma.driver.findMany({where:{}});
+    //     for (const driver of drivers_list) {
+    //         const results = await this.prisma.result.findMany({where:{driver_number : driver.driver_number}});
+    //         this.prisma.driver.
+    //     }
+    // }
 
 
 
@@ -157,18 +226,7 @@ export class DataInserter {
 }
 
 
-// async function main(){
-//     const myDataFetcher = new DataFetcher();
-//     const myDataInserter= new DataInserter();
-//     for (const year of [2023,2024]){
-//         const sessions : Session_interface[] = await myDataFetcher.fetchSessions(year)
-//         await myDataInserter.insertRaces(sessions);
-//
-//     }
-//     myDataInserter.disconnect();
-// }
-//
-// main().catch(error => console.error(`main() failed: ${error}`));
+
 
 
 
