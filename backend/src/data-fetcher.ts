@@ -1,6 +1,7 @@
 import axios, {AxiosError, AxiosResponse, AxiosRequestConfig} from "axios";
 import {PrismaClient} from './../generated/prisma/client'
 import {v4 as uuid4  } from "uuid";
+import {readFileSync} from "fs";
 
 interface Session_interface {
 
@@ -58,6 +59,8 @@ function extra_piont(word:number|string|number[]) :number {
         return Number(word[1])
     }else return 0
 }
+
+
 export class   DataFetcher{
     private baseURL: string = 'https://api.openf1.org/v1';
 
@@ -124,7 +127,7 @@ export class DataInserter {
             else{
                 await this.prisma.driver.createMany({
                     data :drivers_list.map((driver_member:Driver_interface) => ({
-                        id : this.generate_id(),
+
                         name : driver_member.full_name,
                         driver_number : driver_member.driver_number,
                         team_id: driver_member.team_name,
@@ -193,7 +196,6 @@ export class DataInserter {
                 await this.addPoints(result_list);
                 await this.prisma.result.createMany({
                     data :  result_list.map((result:Result_interface) =>({
-                        id: this.generate_id(),
                         race_id :    result.session_key.toString(),
                         driver_number :  result.driver_number,
                         position :    Number(result.position),
@@ -226,7 +228,38 @@ export class DataInserter {
 }
 
 
+export class QueryExecute{
+    private prisma:PrismaClient;
+    constructor() {
+        this.prisma = new PrismaClient();
+    }
 
+    async executeSqlFile(filePath:string): Promise<any[]> {
+        try {
+            const sqlContent:string = readFileSync(filePath,'utf-8');
+            const queries:string[] = sqlContent.split(';').map(q => q.trim()).filter(q => q.length > 0);
+
+            const results: any[] = [];
+            for (const query of queries) {
+                if (query.toUpperCase().startsWith("SELECT")) {
+                    const result = await this.prisma.$queryRawUnsafe(query);
+                    results.push({query,result});
+                }else {
+                    await this.prisma.$executeRawUnsafe(query);
+                    results.push({query,result:"Executed"})
+                }
+
+            }
+            console.log(results);
+            return results;
+
+        }catch(error) {
+            console.error(`failed to executeSqlFile: ${error}`);
+            throw error;
+        }
+
+    }
+}
 
 
 
