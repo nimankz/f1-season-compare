@@ -1,6 +1,6 @@
 import axios, {AxiosError, AxiosResponse, AxiosRequestConfig} from "axios";
-import {Prisma, PrismaClient} from './../generated/prisma/client'
-import {readFileSync} from "fs";
+import {PrismaClient} from './../generated/prisma/client'
+
 
 
 interface Session_interface {
