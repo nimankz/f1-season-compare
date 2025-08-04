@@ -1,7 +1,7 @@
 import axios, {AxiosError, AxiosResponse, AxiosRequestConfig} from "axios";
-import {PrismaClient} from './../generated/prisma/client'
-import {v4 as uuid4  } from "uuid";
+import {Prisma, PrismaClient} from './../generated/prisma/client'
 import {readFileSync} from "fs";
+
 
 interface Session_interface {
 
@@ -114,11 +114,6 @@ export class DataInserter {
         this.prisma = new PrismaClient();
     }
 
-    generate_id(): string {
-        return uuid4();
-    }
-
-
     async insertDrivers(drivers_list: Driver_interface[]): Promise<void> {
         try {
             if (!drivers_list.length) {
@@ -211,55 +206,12 @@ export class DataInserter {
         }
     }
 
-    // async addResultDrivers(): Promise<void>{
-    //     const drivers_list =await this.prisma.driver.findMany({where:{}});
-    //     for (const driver of drivers_list) {
-    //         const results = await this.prisma.result.findMany({where:{driver_number : driver.driver_number}});
-    //         this.prisma.driver.
-    //     }
-    // }
-
-
-
     async disconnect(): Promise<void> {
         await this.prisma.$disconnect();
 
     };
 }
 
-
-export class QueryExecute{
-    private prisma:PrismaClient;
-    constructor() {
-        this.prisma = new PrismaClient();
-    }
-
-    async executeSqlFile(filePath:string): Promise<any[]> {
-        try {
-            const sqlContent:string = readFileSync(filePath,'utf-8');
-            const queries:string[] = sqlContent.split(';').map(q => q.trim()).filter(q => q.length > 0);
-
-            const results: any[] = [];
-            for (const query of queries) {
-                if (query.toUpperCase().startsWith("SELECT")) {
-                    const result = await this.prisma.$queryRawUnsafe(query);
-                    results.push({query,result});
-                }else {
-                    await this.prisma.$executeRawUnsafe(query);
-                    results.push({query,result:"Executed"})
-                }
-
-            }
-            console.log(results);
-            return results;
-
-        }catch(error) {
-            console.error(`failed to executeSqlFile: ${error}`);
-            throw error;
-        }
-
-    }
-}
 
 
 

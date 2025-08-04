@@ -72,6 +72,7 @@ async function main():Promise<void> {
 
     myDataInserter.disconnect();
 
+
 }
 main().catch(error => console.error(`main function has an error: ${error}`));
 
